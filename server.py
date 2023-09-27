@@ -63,8 +63,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
         One note is that the response
         '''
         url = url.split("?")[0] #Remove the paramters
+        print(url)
         ftype, body, code = self.loadFile(url) #Get the body (html content)
-        print(f"{ftype}\n{code}\n{body}")
         head = f"HTTP/1.1 {code} OK\r\nContent-Type: text/{ftype}\r\n" #Create the response header
         response = head + body #Join the head and body
         print(response)
@@ -91,6 +91,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
             response = f.read()
             f.close()
             code = 404
+            ftype = 'html'
 
         return ftype, response, code
 
