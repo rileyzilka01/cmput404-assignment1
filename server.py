@@ -40,14 +40,16 @@ class MyWebServer(socketserver.BaseRequestHandler):
         print(f"Request Method: {method}\nRequested File: {url}") #Debug string for developers
 
         if method in ["PUT", "POST", "DELETE"]:
-            self.request.sendall("405")
+            status_line = "HTTPS/1.1 405 OK\r\n"
+            response = status_line
+            self.request.sendall(response.encode())
             return
 
         if url == '/deep':
             status_line = "HTTP/1.1 301 Moved Permanently\r\n"
             location_header = f"Location: {url}/\r\n"
             response = status_line + location_header
-            self.request.sendall()
+            self.request.sendall(response.encode())
 
         if url != '/': #If the URL is not the homepage
             self.sendFile(url)
@@ -61,10 +63,12 @@ class MyWebServer(socketserver.BaseRequestHandler):
         One note is that the response
         '''
         url = url.split("?")[0] #Remove the paramters
-        body, code = self.loadFile(url) #Get the body (html content)
-        head = f"HTTP/1.1 {code} OK\r\nContent-Type: text/html\r\n" #Create the response header
+        ftype, body, code = self.loadFile(url) #Get the body (html content)
+        print(f"{ftype}\n{code}\n{body}")
+        head = f"HTTP/1.1 {code} OK\r\nContent-Type: text/{ftype}\r\n" #Create the response header
         response = head + body #Join the head and body
-        self.request.send(str(response).encode()) #Send response
+        print(response)
+        self.request.send(response.encode()) #Send response
 
     def loadFile(self, url):
         '''
@@ -72,6 +76,11 @@ class MyWebServer(socketserver.BaseRequestHandler):
         If the file exists it will return a 200 code and the file
         If it doesnt exist it will return a 404 code and the 404 HTML page
         '''
+        if url.split('.')[-1] not in ['html', 'css']:
+        	ftype = 'plain'
+        else:
+        	ftype = url.split('.')[-1]
+        	
         if url in self.compileFiles():
             with open('www'+url, 'r') as f:
                 response = f.read()
@@ -83,7 +92,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
             f.close()
             code = 404
 
-        return response, code
+        return ftype, response, code
 
     def compileFiles(self):
         path = './www'
