@@ -33,29 +33,29 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def handle(self):
         #self.request is the socket
         self.data = self.request.recv(1024)
+        print (f"Got a request of: {self.data}") #Prints the entire request with headers, if no file requested
 
         args = self.data.decode('utf8').split(" ") #Split up the request for headers
+        if len(args) <= 1: #If there are no args after the method (rare case which causes errors)
+            return
         method = args[0]
         url = args[1]
-        print(f"Request Method: {method}\nRequested File: {url}") #Debug string for developers
+        print(f"Request Method: {method}\nRequested File: {url}\n") #Debug string for developers
 
-        if method in ["PUT", "POST", "DELETE"]:
-            status_line = "HTTPS/1.1 405 OK\r\n"
+        if method != "GET": #If the method is not GET return 405 and break
+            status_line = "HTTP/1.1 405 Method Not Allowed\r\n"
             response = status_line
             self.request.sendall(response.encode())
             return
 
-        if url == '/deep':
+        if url == '/deep': #for known directory inside www, redirect to 127.0.0.1:8080/deep/
             status_line = "HTTP/1.1 301 Moved Permanently\r\n"
             location_header = f"Location: {url}/\r\n"
             response = status_line + location_header
             self.request.sendall(response.encode())
 
-        if url != '/': #If the URL is not the homepage
-            self.sendFile(url)
+        self.sendFile(url) #Send the requested file (Only GET requests are allowed)
        
-        print (f"Got a request of: {self.data}\n") #Prints the entire request with headers, if no file requested
-        #self.request.sendall("HTTP/1.1 200 OK\r\n".encode())
 
     def sendFile(self, url):
         '''
@@ -63,11 +63,9 @@ class MyWebServer(socketserver.BaseRequestHandler):
         One note is that the response
         '''
         url = url.split("?")[0] #Remove the paramters
-        print(url)
         ftype, body, code = self.loadFile(url) #Get the body (html content)
-        head = f"HTTP/1.1 {code} OK\r\nContent-Type: text/{ftype}\r\n" #Create the response header
+        head = f"HTTP/1.1 {code} OK\r\nContent-Type: text/{ftype}\r\n\n" #Create the response header
         response = head + body #Join the head and body
-        print(response)
         self.request.send(response.encode()) #Send response
 
     def loadFile(self, url):
@@ -76,17 +74,20 @@ class MyWebServer(socketserver.BaseRequestHandler):
         If the file exists it will return a 200 code and the file
         If it doesnt exist it will return a 404 code and the 404 HTML page
         '''
-        if url.split('.')[-1] not in ['html', 'css']:
-        	ftype = 'plain'
-        else:
-        	ftype = url.split('.')[-1]
+        if url[-1] == '/': #If the url ends with a / assume we are in a directory
+            url += 'index.html'
+            ftype = 'html'
+        elif url.split('.')[-1] not in ['html', 'css']: #If file type is not html or css
+            ftype = 'plain'
+        else: #Else set the file type to the end of the file
+            ftype = url.split('.')[-1]
         	
-        if url in self.compileFiles():
+        if url in self.compileFiles(): #If the file is in the www directory
             with open('www'+url, 'r') as f:
                 response = f.read()
                 f.close()
             code = 200
-        else:
+        else: #Otherwise open the 404 file and return
             f = open('www/404.html', 'r')
             response = f.read()
             f.close()
@@ -98,10 +99,12 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def compileFiles(self):
         path = './www'
         file_list = []
+        #Get all files and nested files
         for root, dirs, files in os.walk(path):
             for file in files:
                 file_list.append(root+'/'+file)
 
+        #Adjust file names and remove www root
         for i in range(len(file_list)):
             file_list[i] = file_list[i][5:]
             file_list[i] = file_list[i].replace('\\', '/')
