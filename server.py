@@ -33,14 +33,14 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def handle(self):
         #self.request is the socket
         self.data = self.request.recv(1024)
-        print (f"Got a request of: {self.data}") #Prints the entire request with headers, if no file requested
+        #print (f"Got a request of: {self.data}") #Prints the entire request with headers, if no file requested
 
         args = self.data.decode('utf8').split(" ") #Split up the request for headers
         if len(args) <= 1: #If there are no args after the method (rare case which causes errors)
             return
         method = args[0]
         url = args[1]
-        print(f"Request Method: {method}\nRequested File: {url}\n") #Debug string for developers
+        #print(f"Request Method: {method}\nRequested File: {url}\n") #Debug string for developers
 
         if method != "GET": #If the method is not GET return 405 and break
             status_line = "HTTP/1.1 405 Method Not Allowed\r\n"
